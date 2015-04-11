@@ -11,6 +11,6 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fastmit.settings")
 
 
-from django.core.handlers.wsgi import WSGIHandler
-application = WSGIHandler()
+from django.core.wsgi import get_wsgi_application
+application = get_wsgi_application()
 

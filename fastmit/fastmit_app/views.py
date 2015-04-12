@@ -39,7 +39,7 @@ def registration(request):
 
 def login(request):
     if request.method == 'OPTIONS':
-        json_response({})
+        return json_response({})
     elif request.method == 'POST':
         username = request.POST.get('username', None)
         password = request.POST.get('password', None)
@@ -60,7 +60,7 @@ def login(request):
 
 def logout(request):
     if request.method == 'OPTIONS':
-        json_response({})
+        return json_response({})
     elif request.method == 'POST':
         token = request.POST.get('token', None)
         if token is None:

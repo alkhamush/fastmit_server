@@ -19,9 +19,19 @@ def registration(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        username = request.POST.get('username', None)
-        email = request.POST.get('email', None)
-        password = request.POST.get('password', None)
+        params = json.loads(request.body)
+        try:
+            username = params['username']
+        except KeyError:
+            username = None
+        try:
+            email = params['email']
+        except KeyError:
+            email = None
+        try:
+            password = params['password']
+        except KeyError:
+            password = None
         if username is None or email is None or password is None:
             return json_response({'response': 'Invalid data'}, status=403)
         if User.objects.filter(email=email).count():
@@ -41,8 +51,15 @@ def login(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        username = request.POST.get('username', None)
-        password = request.POST.get('password', None)
+        params = json.loads(request.body)
+        try:
+            username = params['username']
+        except KeyError:
+            username = None
+        try:
+            password = params['password']
+        except KeyError:
+            password = None
         if username is None or password is None:
             return json_response({'response': 'Wrong login or password'}, status=403)
         user = auth.authenticate(username=username, password=password)
@@ -62,7 +79,11 @@ def logout(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        token = request.POST.get('token', None)
+        params = json.loads(request.body)
+        try:
+            token = params['token']
+        except KeyError:
+            token = None
         if token is None:
             return json_response({'response': 'Logout fail'}, status=403)
         try:

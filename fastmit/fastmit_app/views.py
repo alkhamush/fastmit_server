@@ -44,7 +44,7 @@ def login(request):
         username = request.POST.get('username', None)
         password = request.POST.get('password', None)
         if username is None or password is None:
-            return json_response({'response': 'Wrong login or password'})
+            return json_response({'response': 'Wrong login or password'}, status=403)
         user = auth.authenticate(username=username, password=password)
         if user is not None:
             if user.is_active:

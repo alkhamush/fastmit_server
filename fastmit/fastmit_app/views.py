@@ -10,6 +10,9 @@ from django.db import IntegrityError
 def json_response(response_dict, status=200):
     response = HttpResponse(json.dumps(response_dict), content_type="application/json", status=status)
     response['Access-Control-Allow-Origin'] = '*'
+    response['Access-Control-Allow-Credentials'] = 'true'
+    response['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+    response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     return response
 
 def registration(request):

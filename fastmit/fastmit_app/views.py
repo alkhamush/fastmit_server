@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import json
+import redis
+
 from django.http import HttpResponse
 from django.contrib import auth
 from django.contrib.auth.models import User
@@ -14,6 +16,16 @@ def json_response(response_dict, status=200):
     response['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
     response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     return response
+
+def potential_friends_response(all_potential_friends, list_friend_id, request):
+    if len(list_friend_id) > 0:
+        for friend_id in list_friend_id:
+            friend = dict()
+            friend['id'] = friend_id
+            friend['username'] = User.objects.get(pk=friend_id).username
+            friend['photoUrl'] = 'some_photo_url'
+            friend['request'] = request
+            all_potential_friends.append(friend)
 
 def registration(request):
     if request.method == 'OPTIONS':
@@ -91,5 +103,55 @@ def logout(request):
             return json_response({'response': 'Ok'})
         except Session.DoesNotExist:
             return json_response({'response': 'Logout fail'}, status=403)
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+def friends(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'GET':
+        token = request.GET.get('token', None)
+        if token is None:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        uid = session.get_decoded().get('_auth_user_id')
+        r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        list_friend_id = list(r.smembers('user_%s_friends' % uid))
+        all_friends = []
+        if len(list_friend_id) > 0:
+            for friend_id in list_friend_id:
+                friend = dict()
+                friend['id'] = friend_id
+                friend['username'] = User.objects.get(pk=friend_id).username
+                friend['isOnline'] = False
+                friend['photoUrl'] = 'some_photo_url'
+                friend['hasUnread'] = len(r.zrange("messages_from_%s_to_%s" % (friend_id, uid), 0, -1, withscores=True)) > 0
+                all_friends.append(friend)
+        return json_response({'friends': all_friends})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+def potential_friends(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'GET':
+        token = request.GET.get('token', None)
+        if token is None:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        uid = session.get_decoded().get('_auth_user_id')
+        r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        list_friend_id_in = list(r.smembers('user_%s_potential_friends_in' % uid))
+        list_friend_id_out = list(r.smembers('user_%s_potential_friends_out' % uid))
+        all_potential_friends = []
+        potential_friends_response(all_potential_friends, list_friend_id_in, 'in')
+        potential_friends_response(all_potential_friends, list_friend_id_out, 'out')
+        return json_response({'users': all_potential_friends})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

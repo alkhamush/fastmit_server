@@ -26,7 +26,7 @@ def potential_friends_response(all_potential_friends, list_friend_id, request, r
             friend = dict()
             friend['id'] = friend_id
             friend['username'] = User.objects.get(pk=friend_id).username
-            friend['photoUrl'] = redis.get('user_%s_avatar' % friend_id)
+            friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
             friend['request'] = request
             all_potential_friends.append(friend)
 

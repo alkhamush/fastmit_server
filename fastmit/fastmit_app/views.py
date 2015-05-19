@@ -254,6 +254,7 @@ def friends_search(request):
         user['username'] = find_user.username
         user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
         user['isOnline'] = False
+        user['photoUrl'] = r.get('user_%s_avatar' % uid)
         users.append(user)
         return json_response({'users': users})
     else:

@@ -282,3 +282,37 @@ def user_info(request):
         return json_response({'info': info})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
+
+def change_password(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = json.loads(request.body)
+        try:
+            token = params['token']
+        except KeyError:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            old_password = params['oldPassword']
+        except KeyError:
+            return json_response({'response': 'Wrong old password'}, status=403)
+        try:
+            new_password = params['newPassword']
+        except KeyError:
+            return json_response({'response': 'Empty new password'}, status=403)
+        if new_password == '':
+            return json_response({'response': 'Empty new password'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        uid = session.get_decoded().get('_auth_user_id')
+        user = User.objects.get(id=uid)
+        if user.check_password(old_password):
+            user.set_password(new_password)
+            user.save()
+            return json_response({'response': 'Password is changed'})
+        else:
+            return json_response({'response': 'Wrong old password'}, status=403)
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)

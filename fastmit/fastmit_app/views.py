@@ -30,6 +30,13 @@ def potential_friends_response(all_potential_friends, list_friend_id, request, r
             friend['request'] = request
             all_potential_friends.append(friend)
 
+def get_unread_count(uid, r):
+    unread_count = 0
+    set_friend_id = r.smembers('user_%s_friends' % uid)
+    for friend_id in set_friend_id:
+        unread_count += len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True))
+    return unread_count
+
 def registration(request):
     if request.method == 'OPTIONS':
         return json_response({})
@@ -131,7 +138,7 @@ def friends(request):
                 friend['username'] = User.objects.get(pk=friend_id).username
                 friend['isOnline'] = False
                 friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
-                friend['hasUnread'] = len(r.zrange("messages_from_%s_to_%s" % (friend_id, uid), 0, -1, withscores=True)) > 0
+                friend['hasUnread'] = len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True)) > 0
                 all_friends.append(friend)
         return json_response({'friends': all_friends})
     else:
@@ -249,5 +256,29 @@ def friends_search(request):
         user['isOnline'] = False
         users.append(user)
         return json_response({'users': users})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+def user_info(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'GET':
+        token = request.GET.get('token', None)
+        if token is None:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        uid = session.get_decoded().get('_auth_user_id')
+        user = User.objects.get(id=uid)
+        r = redis_connect()
+        info = dict()
+        info['username'] = user.username
+        info['photoUrl'] = r.get('user_%s_avatar' % uid)
+        info['email'] = user.email
+        info['friendsCount'] = len(r.smembers('user_%s_friends' % uid))
+        info['unreadCount'] = get_unread_count(uid, r)
+        return json_response({'info': info})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

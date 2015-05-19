@@ -162,34 +162,31 @@ def potential_friends(request):
 def friends_add(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'POST':
-        params = json.loads(request.body)
-        try:
-            token = params['token']
-        except KeyError:
+    elif request.method == 'GET':
+        token = request.GET.get('token', None)
+        if token is None:
             return json_response({'response': 'token error'}, status=403)
-        try:
-            friendId = params['friendId']
-        except KeyError:
+        friend_id = request.GET.get('friendId', None)
+        if friend_id is None:
             return json_response({'response': 'friend_id error'}, status=403)
         try:
             session = Session.objects.get(pk=token)
         except Session.DoesNotExist:
             return json_response({'response': 'token error'}, status=403)
         try:
-            User.objects.get(id=friendId)
+            User.objects.get(id=friend_id)
         except User.DoesNotExist:
             return json_response({'response': 'friend_id error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         r = redis_connect()
-        if str(friendId) in r.smembers('user_%s_potential_friends_in' % uid):
-            r.sadd('user_%s_friends' % uid, friendId)
-            r.sadd('user_%s_friends' % friendId, uid)
-            r.srem('user_%s_potential_friends_in' % uid, friendId)
-            r.srem('user_%s_potential_friends_out' % friendId, uid)
+        if str(friend_id) in r.smembers('user_%s_potential_friends_in' % uid):
+            r.sadd('user_%s_friends' % uid, friend_id)
+            r.sadd('user_%s_friends' % friend_id, uid)
+            r.srem('user_%s_potential_friends_in' % uid, friend_id)
+            r.srem('user_%s_potential_friends_out' % friend_id, uid)
         else:
-            r.sadd('user_%s_potential_friends_out' % uid, friendId)
-            r.sadd('user_%s_potential_friends_in' % friendId, uid)
+            r.sadd('user_%s_potential_friends_out' % uid, friend_id)
+            r.sadd('user_%s_potential_friends_in' % friend_id, uid)
         return json_response({'response': 'Request is sent'})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
@@ -197,32 +194,29 @@ def friends_add(request):
 def friends_delete(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'POST':
-        params = json.loads(request.body)
-        try:
-            token = params['token']
-        except KeyError:
+    elif request.method == 'GET':
+        token = request.GET.get('token', None)
+        if token is None:
             return json_response({'response': 'token error'}, status=403)
-        try:
-            friendId = params['friendId']
-        except KeyError:
+        friend_id = request.GET.get('friendId', None)
+        if friend_id is None:
             return json_response({'response': 'friend_id error'}, status=403)
         try:
             session = Session.objects.get(pk=token)
         except Session.DoesNotExist:
             return json_response({'response': 'token error'}, status=403)
         try:
-            User.objects.get(id=friendId)
+            User.objects.get(id=friend_id)
         except User.DoesNotExist:
             return json_response({'response': 'friend_id error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         r = redis_connect()
-        r.srem('user_%s_friends' % uid, friendId)
-        r.srem('user_%s_friends' % friendId, uid)
-        r.srem('user_%s_potential_friends_out' % uid, friendId)
-        r.srem('user_%s_potential_friends_out' % friendId, uid)
-        r.srem('user_%s_potential_friends_in' % friendId, uid)
-        r.srem('user_%s_potential_friends_in' % uid, friendId)
+        r.srem('user_%s_friends' % uid, friend_id)
+        r.srem('user_%s_friends' % friend_id, uid)
+        r.srem('user_%s_potential_friends_out' % uid, friend_id)
+        r.srem('user_%s_potential_friends_out' % friend_id, uid)
+        r.srem('user_%s_potential_friends_in' % friend_id, uid)
+        r.srem('user_%s_potential_friends_in' % uid, friend_id)
         return json_response({'response': 'User is removed from your list'})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

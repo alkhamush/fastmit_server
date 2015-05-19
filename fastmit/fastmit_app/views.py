@@ -220,3 +220,34 @@ def friends_delete(request):
         return json_response({'response': 'User is removed from your list'})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
+
+def friends_search(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'GET':
+        token = request.GET.get('token', None)
+        if token is None:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        users = []
+        find_name = request.GET.get('username', None)
+        if find_name is None:
+            return json_response({'users': users})
+        try:
+            find_user = User.objects.get(username=find_name)
+        except User.DoesNotExist:
+            return json_response({'users': users})
+        user = dict()
+        uid = session.get_decoded().get('_auth_user_id')
+        r = redis_connect()
+        user['id'] = find_user.id
+        user['username'] = find_user.username
+        user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
+        user['isOnline'] = False
+        users.append(user)
+        return json_response({'users': users})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)

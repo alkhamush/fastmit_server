@@ -12,6 +12,7 @@ define("port", default=8888, type=int)
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+
     def check_origin(self, origin):
         print origin
         return True
@@ -31,7 +32,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print "Connection closed"
 
 
-app = tornado.web.Application([
+class Application(tornado.web.Application):
+    def __init__(self, handlers):
+        super(Application, self).__init__(handlers)
+        self.webSocketPool = dict()
+
+
+app = Application([
     (r'/some-secret-api/websocket', WebSocketHandler),
 ])
 

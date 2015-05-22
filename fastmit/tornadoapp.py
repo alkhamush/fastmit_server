@@ -2,6 +2,8 @@
 import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fastmit.settings")
 import json
+import redis_utils
+from django.core.exceptions import ObjectDoesNotExist
 
 import tornado.ioloop
 import tornado.web
@@ -22,9 +24,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print "New connection"
 	session =  self.get_cookie("sessionid")
 	print session
-	session = Session.objects.get(session_key=session)
-	uid = session.get_decoded().get('_auth_user_id')
+	try:
+		session = Session.objects.get(session_key=session)
+	except ObjectDoesNotExist, e:
+		print e
+		return
+	uid = int(session.get_decoded().get('_auth_user_id'))
 	print uid
+	print redis_utils.get_messages(uid)
+	self.uid = uid
 	self.application.webSocketPool[uid] = self
         #self.write_message("Welcome!")
 
@@ -32,10 +40,16 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print message
         message2 = json.loads(message)
         to = int(message2["body"]["id_friend"])
-	self.app.webSocketPool[to].write_message(message)
+	print to
+	message2["body"]["id_friend"] = str(self.uid)
+	message = json.dumps(message2)
+	print message
+	redis_utils.add_message(to, message)
+	self.application.webSocketPool[to].write_message(message)
         #self.write_message(message)
 
     def on_close(self):
+	#del self.application.webSocketPool[self.uid]
         print "Connection closed"
 
 

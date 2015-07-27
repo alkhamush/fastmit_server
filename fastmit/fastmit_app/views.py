@@ -2,12 +2,28 @@
 
 import json
 import redis
+import os
+import errno
+import time
+import hashlib
 
 from django.http import HttpResponse
 from django.contrib import auth
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
 from django.db import IntegrityError
+
+FILE_PREFIX = '/getfile'
+URL_PREFIX = 'http://95.85.8.141'
+
+
+def parse_json(_str):
+    try:
+        params = json.loads(_str)
+    except ValueError:
+        return json_response({'response': 'json error'}, status=403)
+    return params
+
 
 def json_response(response_dict, status=200):
     response = HttpResponse(json.dumps(response_dict), content_type="application/json", status=status)
@@ -17,8 +33,10 @@ def json_response(response_dict, status=200):
     response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     return response
 
+
 def redis_connect():
     return redis.StrictRedis(host='localhost', port=6379, db=0)
+
 
 def potential_friends_response(all_potential_friends, list_friend_id, request, r):
     if len(list_friend_id) > 0:
@@ -30,6 +48,7 @@ def potential_friends_response(all_potential_friends, list_friend_id, request, r
             friend['request'] = request
             all_potential_friends.append(friend)
 
+
 def get_unread_count(uid, r):
     unread_count = 0
     set_friend_id = r.smembers('user_%s_friends' % uid)
@@ -37,11 +56,45 @@ def get_unread_count(uid, r):
         unread_count += len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True))
     return unread_count
 
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
+
+
+def save_file(username, _file):
+    file_path = '%s/%s/%s' % (FILE_PREFIX, username[0], username)
+    mkdir_p(file_path)
+    ts = int(time.time())
+    _hash = hashlib.sha1('%s%s' % (_file, ts)).hexdigest()[:15]
+    f = open('%s/%s' % (file_path, _hash), 'w')
+    f.write(_file)
+    f.close()
+    return '%s%s/%s' % (URL_PREFIX, file_path, _hash)
+
+
+def remove_file(file_link):
+    file_link = str(file_link)
+    try:
+        file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+    except IndexError:
+        return
+    try:
+        os.remove(file_path)
+    except OSError:
+        pass
+
+
 def registration(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
+        params = parse_json(request.body)
         try:
             username = params['username']
         except KeyError:
@@ -69,11 +122,12 @@ def registration(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def login(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
+        params = parse_json(request.body)
         try:
             username = params['username']
         except KeyError:
@@ -97,11 +151,12 @@ def login(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def logout(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
+        params = parse_json(request.body)
         try:
             token = params['token']
         except KeyError:
@@ -115,6 +170,7 @@ def logout(request):
             return json_response({'response': 'Logout fail'}, status=403)
     else:
         return json_response({'response': 'Invalid method'}, status=403)
+
 
 def friends(request):
     if request.method == 'OPTIONS':
@@ -144,6 +200,7 @@ def friends(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def potential_friends(request):
     if request.method == 'OPTIONS':
         return json_response({})
@@ -165,6 +222,7 @@ def potential_friends(request):
         return json_response({'users': all_potential_friends})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
+
 
 def friends_add(request):
     if request.method == 'OPTIONS':
@@ -198,6 +256,7 @@ def friends_add(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def friends_delete(request):
     if request.method == 'OPTIONS':
         return json_response({})
@@ -227,6 +286,7 @@ def friends_delete(request):
         return json_response({'response': 'User is removed from your list'})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
+
 
 def friends_search(request):
     if request.method == 'OPTIONS':
@@ -260,6 +320,7 @@ def friends_search(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def user_info(request):
     if request.method == 'OPTIONS':
         return json_response({})
@@ -284,11 +345,12 @@ def user_info(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def change_password(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
+        params = parse_json(request.body)
         try:
             token = params['token']
         except KeyError:
@@ -315,5 +377,34 @@ def change_password(request):
             return json_response({'response': 'Password is changed'})
         else:
             return json_response({'response': 'Wrong old password'}, status=403)
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def change_avatar(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        try:
+            token = params['token']
+        except KeyError:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            avatar = params['avatar']
+        except KeyError:
+            return json_response({'response': 'avatar error'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        uid = session.get_decoded().get('_auth_user_id')
+        user = User.objects.get(id=uid)
+        avatar_link = save_file(user.username, avatar)
+        r = redis_connect()
+        old_avatar = r.get('user_%s_avatar' % uid)
+        remove_file(old_avatar)
+        r.set('user_%s_avatar' % uid, avatar_link)
+        return json_response({'response': 'Ok'})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

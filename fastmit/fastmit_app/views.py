@@ -90,6 +90,18 @@ def remove_file(file_link):
         pass
 
 
+def read_file(file_link):
+    file_link = str(file_link)
+    try:
+        file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+    except IndexError:
+        return None
+    f = open(file_path)
+    data = f.read()
+    f.close()
+    return data
+
+
 def registration(request):
     if request.method == 'OPTIONS':
         return json_response({})
@@ -406,5 +418,54 @@ def change_avatar(request):
         remove_file(old_avatar)
         r.set('user_%s_avatar' % uid, avatar_link)
         return json_response({'response': 'Ok'})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def get_photo(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        try:
+            token = params['token']
+        except KeyError:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            file_link = params['photoUrl']
+        except KeyError:
+            return json_response({'response': 'no photo'}, status=403)
+        try:
+            Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        data = read_file(file_link)
+        remove_file(file_link)
+        return json_response({'data': data})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def get_photourl(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        try:
+            token = params['token']
+        except KeyError:
+            return json_response({'response': 'token error'}, status=403)
+        try:
+            data = params['photo']
+        except KeyError:
+            return json_response({'response': 'file error'}, status=403)
+        try:
+            session = Session.objects.get(pk=token)
+        except Session.DoesNotExist:
+            return json_response({'response': 'token error'}, status=403)
+        uid = session.get_decoded().get('_auth_user_id')
+        user = User.objects.get(id=uid)
+        url = save_file(user.username, data)
+        return json_response({'url': url})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

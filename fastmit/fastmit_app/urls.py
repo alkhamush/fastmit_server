@@ -12,4 +12,6 @@ urlpatterns = patterns('',
     url(r'^some-secret-api/user/info$', 'fastmit_app.views.user_info', name='user_info'),
     url(r'^some-secret-api/user/change-password$', 'fastmit_app.views.change_password', name='change_password'),
     url(r'^some-secret-api/user/change-avatar$', 'fastmit_app.views.change_avatar', name='change_avatar'),
+    url(r'^some-secret-api/chat/get-photo$', 'fastmit_app.views.get_photo', name='get_photo'),
+    url(r'^some-secret-api/chat/get-photourl$', 'fastmit_app.views.get_photourl', name='get_photourl'),
 )

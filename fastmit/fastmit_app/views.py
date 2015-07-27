@@ -14,6 +14,7 @@ from django.contrib.sessions.models import Session
 from django.db import IntegrityError
 
 FILE_PREFIX = '/getfile'
+FILE_PREFIX_AVATAR = '/avatar'
 URL_PREFIX = 'http://95.85.8.141'
 
 
@@ -67,8 +68,11 @@ def mkdir_p(path):
             raise
 
 
-def save_file(username, _file):
-    file_path = '%s/%s/%s' % (FILE_PREFIX, username[0], username)
+def save_file(username, _file, avatar=False):
+    if avatar:
+        file_path = '%s/%s' % (FILE_PREFIX_AVATAR, username[0])
+    else:
+        file_path = '%s/%s/%s' % (FILE_PREFIX, username[0], username)
     mkdir_p(file_path)
     ts = int(time.time())
     _hash = hashlib.sha1('%s%s' % (_file, ts)).hexdigest()[:15]
@@ -78,10 +82,13 @@ def save_file(username, _file):
     return '%s%s/%s' % (URL_PREFIX, file_path, _hash)
 
 
-def remove_file(file_link):
+def remove_file(file_link, avatar=False):
     file_link = str(file_link)
     try:
-        file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+        if avatar:
+            file_path = '%s/%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX)[1])
+        else:
+            file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
     except IndexError:
         return
     try:
@@ -412,10 +419,10 @@ def change_avatar(request):
             return json_response({'response': 'token error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         user = User.objects.get(id=uid)
-        avatar_link = save_file(user.username, avatar)
+        avatar_link = save_file(user.username, avatar, avatar=True)
         r = redis_connect()
         old_avatar = r.get('user_%s_avatar' % uid)
-        remove_file(old_avatar)
+        remove_file(old_avatar, avatar=True)
         r.set('user_%s_avatar' % uid, avatar_link)
         return json_response({'response': 'Ok'})
     else:

@@ -2,6 +2,7 @@
 
 from utils import *
 
+from django.db.models import Q
 from django.contrib import auth
 from django.db import IntegrityError
 from django.contrib.auth.models import User
@@ -195,21 +196,21 @@ def friends_search(request):
         if not session:
             return json_response({'response': 'token error'}, status=403)
         users = []
-        find_name = request.GET.get('username', None)
+        find_name = params.get('username', None)
         if find_name is None:
             return json_response({'users': users})
-        find_user = get_user(username=find_name)
-        if not find_user:
-            return json_response({'users': users})
-        user = dict()
-        uid = get_uid(session)
-        r = redis_connect()
-        user['id'] = find_user.id
-        user['username'] = find_user.username
-        user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
-        user['isOnline'] = False
-        user['photoUrl'] = r.get('user_%s_avatar' % uid)
-        users.append(user)
+        qs = User.objects.all()
+        qs = qs.filter(Q(username__icontains=find_name))
+        for find_user in qs:
+            user = dict()
+            uid = get_uid(session)
+            r = redis_connect()
+            user['id'] = find_user.id
+            user['username'] = find_user.username
+            user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
+            user['isOnline'] = False
+            user['photoUrl'] = r.get('user_%s_avatar' % uid)
+            users.append(user)
         return json_response({'users': users})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

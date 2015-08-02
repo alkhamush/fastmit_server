@@ -201,7 +201,7 @@ def friends_search(request):
             return json_response({'users': users})
         qs = User.objects.all()
         qs = qs.filter(Q(username__icontains=find_name))
-        for find_user in qs:
+        for find_user in qs[:3]:
             user = dict()
             uid = get_uid(session)
             r = redis_connect()

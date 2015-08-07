@@ -5,6 +5,8 @@ import time
 import json
 import redis
 import errno
+import string
+import random
 import hashlib
 
 from django.http import HttpResponse
@@ -45,12 +47,14 @@ def get_session(token):
     return session
 
 
-def get_user(id=0, username=None):
+def get_user(id=0, username=None, email=None):
     try:
-        if not username:
-            user = User.objects.get(id=id)
-        else:
+        if username:
             user = User.objects.get(username=username)
+        elif email:
+            user = User.objects.get(email=email)
+        else:
+            user = User.objects.get(id=id)
     except User.DoesNotExist:
         return None
     return user
@@ -128,3 +132,7 @@ def read_file(file_link):
     data = f.read()
     f.close()
     return data
+
+
+def pass_gen(size=8, chars=string.ascii_lowercase + string.digits):
+    return ''.join(random.choice(chars) for _ in range(size))

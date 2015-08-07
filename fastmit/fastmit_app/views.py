@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from utils import *
-
 from django.db.models import Q
 from django.contrib import auth
 from django.db import IntegrityError
-from django.contrib.auth.models import User
+from django.core.mail import send_mail
+
+from utils import *
 
 
 def registration(request):
@@ -332,5 +332,59 @@ def get_photourl(request):
         user = get_user(uid)
         url = save_file(user.username, data)
         return json_response({'url': url})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def forgot_password(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'GET':
+        response = json_response({'response': 'New password has been sent to your email'})
+        email = request.GET.get('email', None)
+        user = get_user(email=email)
+        if not user:
+            return response
+        r = redis_connect()
+        tmp_pass = pass_gen()
+        recover = dict()
+        recover['pass'] = tmp_pass
+        recover['expires'] = int(time.time()) + 3600
+        r.set('user_%s_recover' % user.pk, json.dumps(recover))
+        send_mail(subject='Fastmit Password Recovery', from_email='no-reply@fastmit.com',
+                  recipient_list=[user.email], fail_silently=True,
+                  message='Dear %s,\n\nYour temp password for 1 hour is "%s" without quotes.\n\nBest,\nThe Fastmit Team' % (user.username, tmp_pass))
+        return response
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def recover_password(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        response_error = json_response({"response": "Wrong tmp password or expired"}, status=403)
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        email = params.get('email', None)
+        tmp_pass = params.get('tmpPassword', None)
+        new_password = params.get('newPassword', None)
+        if new_password == '':
+            return json_response({'response': 'Empty new password'}, status=403)
+        user = get_user(email=email)
+        if not user:
+            return response_error
+        r = redis_connect()
+        redis_tmp = r.get('user_%s_recover' % user.pk)
+        if not redis_tmp:
+            return response_error
+        recover = json.loads(redis_tmp)
+        if recover.get('pass', None) == tmp_pass and recover.get('expires', None) > int(time.time()):
+            r.delete('user_%s_recover' % user.pk)
+            user.set_password(new_password)
+            user.save()
+            return json_response({'response': 'Password is changed'})
+        return response_error
     else:
         return json_response({'response': 'Invalid method'}, status=403)

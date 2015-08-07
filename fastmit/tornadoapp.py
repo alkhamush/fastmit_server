@@ -1,7 +1,8 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fastmit.settings")
 import json
+import message_utils
 import redis_utils
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -27,29 +28,45 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 	try:
 		session = Session.objects.get(session_key=session)
 	except ObjectDoesNotExist, e:
-		print e
+		self.close()
 		return
 	uid = int(session.get_decoded().get('_auth_user_id'))
 	print uid
-	print redis_utils.get_messages(uid)
+
 	self.uid = uid
 	self.application.webSocketPool[uid] = self
-        #self.write_message("Welcome!")
 
-    def on_message(self, message):
-        print message
-        message2 = json.loads(message)
-        to = int(message2["body"]["id_friend"])
+        message_bodies = redis_utils.get_messages(uid)
+        messages_packet = message_utils.generate_messages_packet(message_bodies)
+	messages_packet_json = json.dumps(messages_packet)
+	self.application.webSocketPool[uid].write_message(messages_packet_json)
+	print messages_packet_json
+
+
+    def on_message(self, message_packet_json):
+        print message_packet_json
+        message_packet = json.loads(message_packet_json)
+        
+	to = int(message_packet["body"]["friendId"])
 	print to
-	message2["body"]["id_friend"] = str(self.uid)
-	message = json.dumps(message2)
-	print message
-	redis_utils.add_message(to, message)
-	self.application.webSocketPool[to].write_message(message)
-        #self.write_message(message)
+
+	message_packet["body"]["friendId"] = str(self.uid)
+	print message_packet
+	if to in self.application.webSocketPool:
+	    message_packet_json = json.dumps(message_packet)
+	    self.application.webSocketPool[to].write_message(message_packet_json)
+	else:
+	    message_body_json = json.dumps(message_packet["body"])
+	    redis_utils.add_message(to, message_body_json)
+	    #message_bodies = redis_utils.get_messages(to)
+	    #messages_packet = message_utils.generate_messages_packet(message_bodies)
+	    
 
     def on_close(self):
-	#del self.application.webSocketPool[self.uid]
+	try:
+		del self.application.webSocketPool[self.uid]
+	except AttributeError:
+		pass
         print "Connection closed"
 
 

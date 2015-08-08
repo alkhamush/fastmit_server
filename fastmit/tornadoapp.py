@@ -10,7 +10,7 @@ import tornado.ioloop
 import tornado.web
 import tornado.websocket
 
-from tornado.options import define, options, parse_command_line
+from tornado.options import define, options
 from django.contrib.sessions.models import Session
 define("port", default=8888, type=int)
 
@@ -23,51 +23,47 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self, *args):
         print "New connection"
-	session =  self.get_cookie("sessionid")
-	print session
-	try:
-		session = Session.objects.get(session_key=session)
-	except ObjectDoesNotExist, e:
-		self.close()
-		return
-	uid = int(session.get_decoded().get('_auth_user_id'))
-	print uid
+        session =  self.get_cookie("sessionid")
+        print session
+        try:
+            session = Session.objects.get(session_key=session)
+        except ObjectDoesNotExist:
+            self.close()
+            return
+        uid = int(session.get_decoded().get('_auth_user_id'))
+        print uid
 
-	self.uid = uid
-	self.application.webSocketPool[uid] = self
+        self.uid = uid
+        self.application.webSocketPool[uid] = self
 
         message_bodies = redis_utils.get_messages(uid)
         messages_packet = message_utils.generate_messages_packet(message_bodies)
-	messages_packet_json = json.dumps(messages_packet)
-	self.application.webSocketPool[uid].write_message(messages_packet_json)
-	print messages_packet_json
-
+        messages_packet_json = json.dumps(messages_packet)
+        self.application.webSocketPool[uid].write_message(messages_packet_json)
+        print messages_packet_json
 
     def on_message(self, message_packet_json):
         print message_packet_json
         message_packet = json.loads(message_packet_json)
         
-	to = int(message_packet["body"]["friendId"])
-	print to
+        to = int(message_packet["body"]["friendId"])
+        print to
 
-	message_packet["body"]["friendId"] = str(self.uid)
-	print message_packet
-	if to in self.application.webSocketPool:
-	    message_packet_json = json.dumps(message_packet)
-	    self.application.webSocketPool[to].write_message(message_packet_json)
-	else:
-	    message_body_json = json.dumps(message_packet["body"])
-	    redis_utils.add_message(to, message_body_json)
-	    #message_bodies = redis_utils.get_messages(to)
-	    #messages_packet = message_utils.generate_messages_packet(message_bodies)
-	    
+        message_packet["body"]["friendId"] = str(self.uid)
+        print message_packet
+        if to in self.application.webSocketPool:
+            message_packet_json = json.dumps(message_packet)
+            self.application.webSocketPool[to].write_message(message_packet_json)
+        else:
+            message_body_json = json.dumps(message_packet["body"])
+            redis_utils.add_message(to, message_body_json)
 
     def on_close(self):
-	try:
-		del self.application.webSocketPool[self.uid]
-	except AttributeError:
-		pass
-        print "Connection closed"
+        try:
+            del self.application.webSocketPool[self.uid]
+        except AttributeError:
+            pass
+            print "Connection closed"
 
 
 class Application(tornado.web.Application):

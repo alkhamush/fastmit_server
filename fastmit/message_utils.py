@@ -23,7 +23,8 @@ MESSAGE_SCHEMA = {
                             "type": "string"
                         },
                         "id": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["text", "photo"],
                         },
                         "timeout": {
                             "type": "integer"

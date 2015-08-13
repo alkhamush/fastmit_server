@@ -12,8 +12,8 @@ import tornado.websocket
 
 from tornado.options import define, options
 from django.contrib.sessions.models import Session
-define("port", default=8888, type=int)
 
+define("port", default=8888, type=int)
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
@@ -23,7 +23,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self, *args):
         print "New connection"
-        session =  self.get_cookie("sessionid")
+        session = self.get_cookie("sessionid")
         print session
         try:
             session = Session.objects.get(session_key=session)
@@ -66,7 +66,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         try:
             del self.application.webSocketPool[self.uid]
         except AttributeError:
-            pass
             print "Connection closed"
 
 

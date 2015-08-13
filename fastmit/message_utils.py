@@ -1,27 +1,54 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import defaultdict
+from jsonschema import validate, ValidationError
+
+MESSAGE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "enum": ["message"],
+        },
+        "body": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "object",
+                    "properties": {
+                        "text": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "type": "string"
+                        },
+                        "id": {
+                            "type": "string"
+                        },
+                        "timeout": {
+                            "type": "integer"
+                        },
+                        "time": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "friendId": {
+                    "type": "string"
+                },
+            }
+        }
+    }
+}
 
 
-def extract_friend_id(message_body):
+def validate_message_packet(message):
     try:
-        return message_body["friendId"]
-    except KeyError:
-        return
+        validate(message, MESSAGE_SCHEMA)
+    except ValidationError:
+        return False
+    return True
 
-
-def extract_body(message_packet):
-    try:
-        return message_packet["body"]
-    except KeyError:
-        return
-
-
-def extract_message(message_body):
-    try:
-        return message_body["message"]
-    except KeyError:
-        return
 
 def generate_messages_packet(message_body_jsons):
     messages_packet = dict()

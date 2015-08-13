@@ -45,7 +45,11 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_message(self, message_packet_json):
         print message_packet_json
         message_packet = json.loads(message_packet_json)
-        
+
+        if not message_utils.validate_message_packet(message_packet):
+            print message_packet_json
+            return
+
         to = int(message_packet["body"]["friendId"])
         print to
 
@@ -70,7 +74,6 @@ class Application(tornado.web.Application):
     def __init__(self, handlers):
         super(Application, self).__init__(handlers)
         self.webSocketPool = dict()
-
 
 app = Application([
     (r'/some-secret-api/websocket', WebSocketHandler),

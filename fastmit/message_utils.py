@@ -20,10 +20,11 @@ MESSAGE_SCHEMA = {
                             "type": "string"
                         },
                         "type": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["text", "photo"]
                         },
-                        "id": {
-                            "type": "string"
+                        "messageId": {
+                            "type": "string",
                         },
                         "timeout": {
                             "type": "integer"

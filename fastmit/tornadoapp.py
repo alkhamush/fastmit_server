@@ -12,6 +12,7 @@ import tornado.websocket
 
 from tornado.options import define, options
 from django.contrib.sessions.models import Session
+
 define("port", default=8888, type=int)
 
 
@@ -23,7 +24,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self, *args):
         print "New connection"
-        session =  self.get_cookie("sessionid")
+        session = self.get_cookie("sessionid")
         print session
         try:
             session = Session.objects.get(session_key=session)
@@ -46,9 +47,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print message_packet_json
         message_packet = json.loads(message_packet_json)
 
-        if not message_utils.validate_message_packet(message_packet):
-            print message_packet_json
-            return
+        # if not message_utils.validate_message_packet(message_packet):
+        #     print message_packet_json
+        #     return
 
         to = int(message_packet["body"]["friendId"])
         print to
@@ -66,7 +67,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         try:
             del self.application.webSocketPool[self.uid]
         except AttributeError:
-            pass
             print "Connection closed"
 
 

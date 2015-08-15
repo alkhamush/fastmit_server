@@ -1,60 +1,24 @@
 # -*- coding: utf-8 -*-
 
-import json
-import redis
-
-from django.http import HttpResponse
+from django.db.models import Q
 from django.contrib import auth
-from django.contrib.auth.models import User
-from django.contrib.sessions.models import Session
 from django.db import IntegrityError
+from django.core.mail import send_mail
 
-def json_response(response_dict, status=200):
-    response = HttpResponse(json.dumps(response_dict), content_type="application/json", status=status)
-    response['Access-Control-Allow-Origin'] = '*'
-    response['Access-Control-Allow-Credentials'] = 'true'
-    response['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
-    response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    return response
+from utils import *
 
-def redis_connect():
-    return redis.StrictRedis(host='localhost', port=6379, db=0)
-
-def potential_friends_response(all_potential_friends, list_friend_id, request, r):
-    if len(list_friend_id) > 0:
-        for friend_id in list_friend_id:
-            friend = dict()
-            friend['id'] = friend_id
-            friend['username'] = User.objects.get(pk=friend_id).username
-            friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
-            friend['request'] = request
-            all_potential_friends.append(friend)
-
-def get_unread_count(uid, r):
-    unread_count = 0
-    set_friend_id = r.smembers('user_%s_friends' % uid)
-    for friend_id in set_friend_id:
-        unread_count += len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True))
-    return unread_count
 
 def registration(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
-        try:
-            username = params['username']
-        except KeyError:
-            username = None
-        try:
-            email = params['email']
-        except KeyError:
-            email = None
-        try:
-            password = params['password']
-        except KeyError:
-            password = None
-        if username is None or email is None or password is None:
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        username = params.get('username', None)
+        email = params.get('email', None)
+        password = params.get('password', None)
+        if not username or not email or not password:
             return json_response({'response': 'Invalid data'}, status=403)
         if User.objects.filter(email=email).count():
             return json_response({'response': 'Email is already registered'}, status=403)
@@ -69,23 +33,18 @@ def registration(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def login(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
-        try:
-            username = params['username']
-        except KeyError:
-            username = None
-        try:
-            password = params['password']
-        except KeyError:
-            password = None
-        if username is None or password is None:
-            return json_response({'response': 'Wrong login or password'}, status=403)
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        username = params.get('username', None)
+        password = params.get('password', None)
         user = auth.authenticate(username=username, password=password)
-        if user is not None:
+        if user:
             if user.is_active:
                 auth.login(request, user)
                 session_key = request.session.session_key
@@ -97,35 +56,34 @@ def login(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def logout(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
-        try:
-            token = params['token']
-        except KeyError:
-            token = None
-        if token is None:
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'Logout fail'}, status=403)
-        try:
-            Session.objects.get(pk=token).delete()
-            return json_response({'response': 'Ok'})
-        except Session.DoesNotExist:
-            return json_response({'response': 'Logout fail'}, status=403)
+        session.delete()
+        return json_response({'response': 'Ok'})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
+
 
 def friends(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'GET':
-        token = request.GET.get('token', None)
-        if token is None:
-            return json_response({'response': 'token error'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         r = redis_connect()
@@ -144,16 +102,17 @@ def friends(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def potential_friends(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'GET':
-        token = request.GET.get('token', None)
-        if token is None:
-            return json_response({'response': 'token error'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         r = redis_connect()
@@ -166,23 +125,21 @@ def potential_friends(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def friends_add(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'GET':
-        token = request.GET.get('token', None)
-        if token is None:
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        friend_id = params.get('friendId', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
-        friend_id = request.GET.get('friendId', None)
-        if friend_id is None:
-            return json_response({'response': 'friend_id error'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
-            return json_response({'response': 'token error'}, status=403)
-        try:
-            User.objects.get(id=friend_id)
-        except User.DoesNotExist:
+        user = get_user(friend_id)
+        if not user:
             return json_response({'response': 'friend_id error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         r = redis_connect()
@@ -198,23 +155,21 @@ def friends_add(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def friends_delete(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'GET':
-        token = request.GET.get('token', None)
-        if token is None:
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        friend_id = params.get('friendId', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
-        friend_id = request.GET.get('friendId', None)
-        if friend_id is None:
-            return json_response({'response': 'friend_id error'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
-            return json_response({'response': 'token error'}, status=403)
-        try:
-            User.objects.get(id=friend_id)
-        except User.DoesNotExist:
+        user = get_user(friend_id)
+        if not user:
             return json_response({'response': 'friend_id error'}, status=403)
         uid = session.get_decoded().get('_auth_user_id')
         r = redis_connect()
@@ -228,51 +183,52 @@ def friends_delete(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def friends_search(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'GET':
-        token = request.GET.get('token', None)
-        if token is None:
-            return json_response({'response': 'token error'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
         users = []
-        find_name = request.GET.get('username', None)
+        find_name = params.get('username', None)
         if find_name is None:
             return json_response({'users': users})
-        try:
-            find_user = User.objects.get(username=find_name)
-        except User.DoesNotExist:
-            return json_response({'users': users})
-        user = dict()
-        uid = session.get_decoded().get('_auth_user_id')
-        r = redis_connect()
-        user['id'] = find_user.id
-        user['username'] = find_user.username
-        user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
-        user['isOnline'] = False
-        user['photoUrl'] = r.get('user_%s_avatar' % uid)
-        users.append(user)
+        qs = User.objects.all()
+        qs = qs.filter(Q(username__icontains=find_name))
+        for find_user in qs[:3]:
+            user = dict()
+            uid = get_uid(session)
+            r = redis_connect()
+            user['id'] = find_user.id
+            user['username'] = find_user.username
+            user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
+            user['isOnline'] = False
+            user['photoUrl'] = r.get('user_%s_avatar' % uid)
+            users.append(user)
         return json_response({'users': users})
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def user_info(request):
     if request.method == 'OPTIONS':
         return json_response({})
-    elif request.method == 'GET':
-        token = request.GET.get('token', None)
-        if token is None:
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
-            return json_response({'response': 'token error'}, status=403)
-        uid = session.get_decoded().get('_auth_user_id')
-        user = User.objects.get(id=uid)
+        uid = get_uid(session)
+        user = get_user(uid)
         r = redis_connect()
         info = dict()
         info['username'] = user.username
@@ -284,36 +240,151 @@ def user_info(request):
     else:
         return json_response({'response': 'Invalid method'}, status=403)
 
+
 def change_password(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':
-        params = json.loads(request.body)
-        try:
-            token = params['token']
-        except KeyError:
-            return json_response({'response': 'token error'}, status=403)
-        try:
-            old_password = params['oldPassword']
-        except KeyError:
-            return json_response({'response': 'Wrong old password'}, status=403)
-        try:
-            new_password = params['newPassword']
-        except KeyError:
-            return json_response({'response': 'Empty new password'}, status=403)
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        old_password = params.get('oldPassword', None)
+        new_password = params.get('newPassword', None)
         if new_password == '':
             return json_response({'response': 'Empty new password'}, status=403)
-        try:
-            session = Session.objects.get(pk=token)
-        except Session.DoesNotExist:
+        session = get_session(token)
+        if not session:
             return json_response({'response': 'token error'}, status=403)
-        uid = session.get_decoded().get('_auth_user_id')
-        user = User.objects.get(id=uid)
+        uid = get_uid(session)
+        user = get_user(uid)
         if user.check_password(old_password):
             user.set_password(new_password)
             user.save()
             return json_response({'response': 'Password is changed'})
-        else:
-            return json_response({'response': 'Wrong old password'}, status=403)
+        return json_response({'response': 'Wrong old password'}, status=403)
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def change_avatar(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        avatar = params.get('avatar', None)
+        if not avatar:
+            return json_response({'response': 'avatar error'}, status=403)
+        session = get_session(token)
+        if not session:
+            return json_response({'response': 'token error'}, status=403)
+        uid = get_uid(session)
+        user = get_user(uid)
+        avatar_link = save_file(user.username, avatar, avatar=True)
+        r = redis_connect()
+        old_avatar = r.get('user_%s_avatar' % uid)
+        remove_file(old_avatar, avatar=True)
+        r.set('user_%s_avatar' % uid, avatar_link)
+        return json_response({'response': 'Ok'})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def get_photo(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        file_link = params.get('photoUrl', None)
+        if not file_link:
+            return json_response({'response': 'no photo'}, status=403)
+        session = get_session(token)
+        if not session:
+            return json_response({'response': 'token error'}, status=403)
+        data = read_file(file_link)
+        remove_file(file_link)
+        return json_response({'data': data})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def get_photourl(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        token = params.get('token', None)
+        data = params.get('photo', None)
+        if not data:
+            return json_response({'response': 'file error'}, status=403)
+        session = get_session(token)
+        if not session:
+            return json_response({'response': 'token error'}, status=403)
+        uid = get_uid(session)
+        user = get_user(uid)
+        url = save_file(user.username, data)
+        return json_response({'url': url})
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def forgot_password(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'GET':
+        response = json_response({'response': 'New password has been sent to your email'})
+        email = request.GET.get('email', None)
+        user = get_user(email=email)
+        if not user:
+            return response
+        r = redis_connect()
+        tmp_pass = pass_gen()
+        recover = dict()
+        recover['pass'] = tmp_pass
+        recover['expires'] = int(time.time()) + 3600
+        r.set('user_%s_recover' % user.pk, json.dumps(recover))
+        send_mail(subject='Fastmit Password Recovery', from_email='no-reply@fastmit.com',
+                  recipient_list=[user.email], fail_silently=True,
+                  message='Dear %s,\n\nYour temp password for 1 hour is "%s" without quotes.\n\nBest,\nThe Fastmit Team' % (user.username, tmp_pass))
+        return response
+    else:
+        return json_response({'response': 'Invalid method'}, status=403)
+
+
+def recover_password(request):
+    if request.method == 'OPTIONS':
+        return json_response({})
+    elif request.method == 'POST':
+        response_error = json_response({"response": "Wrong tmp password or expired"}, status=403)
+        params = parse_json(request.body)
+        if not params:
+            return json_response({'response': 'json error'}, status=403)
+        email = params.get('email', None)
+        tmp_pass = params.get('tmpPassword', None)
+        new_password = params.get('newPassword', None)
+        if new_password == '':
+            return json_response({'response': 'Empty new password'}, status=403)
+        user = get_user(email=email)
+        if not user:
+            return response_error
+        r = redis_connect()
+        redis_tmp = r.get('user_%s_recover' % user.pk)
+        if not redis_tmp:
+            return response_error
+        recover = json.loads(redis_tmp)
+        if recover.get('pass', None) == tmp_pass and recover.get('expires', None) > int(time.time()):
+            r.delete('user_%s_recover' % user.pk)
+            user.set_password(new_password)
+            user.save()
+            return json_response({'response': 'Password is changed'})
+        return response_error
     else:
         return json_response({'response': 'Invalid method'}, status=403)

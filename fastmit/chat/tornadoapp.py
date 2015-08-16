@@ -16,7 +16,7 @@ import tornado.websocket
 from tornado.options import define, options
 
 from message_utils import generate_messages_packet
-from photo_storage_connector import get_photo, put_photo
+from photo_storage_connector import put_photo
 from redis_utils import add_message, get_messages
 
 define("port", default=8888, type=int)
@@ -64,7 +64,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         message = body["message"]
 
         if message["type"] == "photo":
-            print put_photo(self.session_key, message["photoData"])
+            url = put_photo(self.session_key, message["photoData"])
+            message["photoUrl"] = url
+            del message["photoData"]
         if to in self.application.webSocketPool:
             message_packet_json = json.dumps(message_packet)
             self.application.webSocketPool[to].write_message(message_packet_json)

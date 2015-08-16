@@ -61,8 +61,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         body["friendId"] = str(self.uid)
 
-        if body["type"] == "photo":
-            print put_photo(self.session_key, body["photoData"])
+        message = body["message"]
+
+        if message["type"] == "photo":
+            print put_photo(self.session_key, message["photoData"])
         if to in self.application.webSocketPool:
             message_packet_json = json.dumps(message_packet)
             self.application.webSocketPool[to].write_message(message_packet_json)

@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
+
 import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fastmit.settings")
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
+
 import json
-import message_utils
-import redis_utils
+
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib.sessions.models import Session
 
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
 
 from tornado.options import define, options
-from django.contrib.sessions.models import Session
+
+from message_utils import generate_messages_packet
+from photo_storage_connector import get_photo, put_photo
+from redis_utils import add_message, get_messages
 
 define("port", default=8888, type=int)
 
@@ -24,10 +30,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self, *args):
         print "New connection"
-        session = self.get_cookie("sessionid")
-        print session
+        session_key = self.get_cookie("sessionid")
+        print session_key
         try:
-            session = Session.objects.get(session_key=session)
+            session = Session.objects.get(session_key=session_key)
         except ObjectDoesNotExist:
             self.close()
             return
@@ -35,10 +41,11 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print uid
 
         self.uid = uid
+        self.session_key = session_key
         self.application.webSocketPool[uid] = self
 
-        message_bodies = redis_utils.get_messages(uid)
-        messages_packet = message_utils.generate_messages_packet(message_bodies)
+        message_bodies = get_messages(uid)
+        messages_packet = generate_messages_packet(message_bodies)
         messages_packet_json = json.dumps(messages_packet)
         self.application.webSocketPool[uid].write_message(messages_packet_json)
         print messages_packet_json
@@ -47,21 +54,21 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print message_packet_json
         message_packet = json.loads(message_packet_json)
 
-        # if not message_utils.validate_message_packet(message_packet):
-        #     print message_packet_json
-        #     return
+        body = message_packet["body"]
 
-        to = int(message_packet["body"]["friendId"])
+        to = int(body["friendId"])
         print to
 
-        message_packet["body"]["friendId"] = str(self.uid)
-        print message_packet
+        body["friendId"] = str(self.uid)
+
+        if body["type"] == "photo":
+            print put_photo(self.session_key, body["photoData"])
         if to in self.application.webSocketPool:
             message_packet_json = json.dumps(message_packet)
             self.application.webSocketPool[to].write_message(message_packet_json)
         else:
-            message_body_json = json.dumps(message_packet["body"])
-            redis_utils.add_message(to, message_body_json)
+            message_body_json = json.dumps(body)
+            add_message(to, message_body_json)
 
     def on_close(self):
         try:

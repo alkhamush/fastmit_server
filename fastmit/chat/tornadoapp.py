@@ -64,7 +64,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         message = body["message"]
 
         if message["type"] == "photo":
-            print put_photo(self.session_key, message["photoData"])
+            url = put_photo(self.session_key, message["photoData"])
+            message["photoUrl"] = url
+            del message["photoData"]
         if to in self.application.webSocketPool:
             message_packet_json = json.dumps(message_packet)
             self.application.webSocketPool[to].write_message(message_packet_json)

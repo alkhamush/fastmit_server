@@ -17,7 +17,7 @@ from tornado.options import define, options
 
 from message_utils import generate_messages_packet
 from photo_storage_connector import put_photo
-from redis_utils import add_message, get_messages, add_websocket, remove_websocket
+from redis_utils import add_message, get_messages, add_online_user, remove_online_user
 
 define("port", default=8888, type=int)
 
@@ -39,7 +39,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.uid = uid
         self.session_key = session_key
         self.application.webSocketPool[uid] = self
-        add_websocket(self.uid, self)
+        add_online_user(self.uid)
 
         message_bodies = get_messages(uid)
         messages_packet = generate_messages_packet(message_bodies)
@@ -71,7 +71,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         try:
             del self.application.webSocketPool[self.uid]
-            remove_websocket(self.uid)
+            remove_online_user(self.uid)
         except (AttributeError, KeyError):
             pass
 

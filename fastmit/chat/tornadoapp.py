@@ -25,20 +25,16 @@ define("port", default=8888, type=int)
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def check_origin(self, origin):
-        print origin
         return True
 
     def open(self, *args):
-        print "New connection"
         session_key = self.get_cookie("sessionid")
-        print session_key
         try:
             session = Session.objects.get(session_key=session_key)
         except ObjectDoesNotExist:
             self.close()
             return
         uid = int(session.get_decoded().get('_auth_user_id'))
-        print uid
 
         self.uid = uid
         self.session_key = session_key
@@ -48,16 +44,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         messages_packet = generate_messages_packet(message_bodies)
         messages_packet_json = json.dumps(messages_packet)
         self.application.webSocketPool[uid].write_message(messages_packet_json)
-        print messages_packet_json
 
     def on_message(self, message_packet_json):
-        print message_packet_json
         message_packet = json.loads(message_packet_json)
 
         body = message_packet["body"]
 
         to = int(body["friendId"])
-        print to
 
         body["friendId"] = str(self.uid)
 
@@ -77,8 +70,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def on_close(self):
         try:
             del self.application.webSocketPool[self.uid]
-        except AttributeError:
-            print "Connection closed"
+        except (AttributeError, KeyError):
+            pass
 
 
 class Application(tornado.web.Application):

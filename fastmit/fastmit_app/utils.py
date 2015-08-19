@@ -13,6 +13,8 @@ from django.http import HttpResponse
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
 FILE_PREFIX = '/getfile'
 FILE_PREFIX_AVATAR = '/avatar'
 URL_PREFIX = 'http://95.85.8.141'
@@ -85,6 +87,7 @@ def potential_friends_response(all_potential_friends, list_friend_id, request, r
             friend['username'] = User.objects.get(pk=friend_id).username
             friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
             friend['request'] = request
+            friend['color'] = r.get('user_%s_color' % friend_id)
             all_potential_friends.append(friend)
 
 
@@ -149,3 +152,7 @@ def read_file(file_link):
 
 def pass_gen(size=8, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
+
+def color_gen():
+    return random.choice(open(os.path.join(BASE_DIR, "fastmit_app/colors.txt")).readlines()).rstrip().upper()

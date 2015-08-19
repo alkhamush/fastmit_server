@@ -26,6 +26,8 @@ def registration(request):
             user = auth.authenticate(username=username, password=password)
             auth.login(request, user)
             session_key = request.session.session_key
+            r = redis_connect()
+            r.set('user_%s_color' % user.pk, color_gen())
             info = get_user_info(user)
             return json_response({'token': session_key, 'info': info})
         except IntegrityError:

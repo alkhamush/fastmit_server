@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from django.db.models import Q
 from django.contrib import auth
 from django.db import IntegrityError
 from django.core.mail import send_mail
@@ -203,7 +202,7 @@ def friends_search(request):
         if find_name is None:
             return json_response({'users': users})
         qs = User.objects.all()
-        qs = qs.filter(Q(username__icontains=find_name))
+        qs = qs.filter(username__icontains=find_name)
         for find_user in qs[:3]:
             user = dict()
             uid = get_uid(session)
@@ -312,7 +311,7 @@ def get_photo(request):
         return json_response({'response': 'Invalid method'}, status=403)
 
 
-def get_photourl(request):
+def put_photo(request):
     if request.method == 'OPTIONS':
         return json_response({})
     elif request.method == 'POST':

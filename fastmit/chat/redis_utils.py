@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import cPickle
 import redis
 
 
@@ -17,3 +18,21 @@ def get_messages(addressee):
     messages = redis_client.lrange(key, 0, -1)
     redis_client.delete(key)
     return messages
+
+
+def add_websocket(uid, websocket):
+    websocket_pickle = cPickle.dumps(websocket)
+    redis_client = redis_connect()
+    redis_client.set(uid, websocket_pickle)
+
+
+def get_websocket(uid):
+    redis_client = redis_connect()
+    websocket_pickle = redis_client.get(uid)
+    return cPickle.loads(websocket_pickle)
+
+
+def remove_websocket(uid):
+    redis_client = redis_connect()
+    redis_client.delete(uid)
+

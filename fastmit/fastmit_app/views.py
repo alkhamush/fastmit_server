@@ -4,6 +4,7 @@ from django.contrib import auth
 from django.db import IntegrityError
 from django.core.mail import send_mail
 
+from redis_utils import redis_connect, is_online
 from utils import *
 
 
@@ -93,7 +94,7 @@ def friends(request):
                 friend = dict()
                 friend['id'] = friend_id
                 friend['username'] = User.objects.get(pk=friend_id).username
-                friend['isOnline'] = False
+                friend['isOnline'] = is_online(friend_id)
                 friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
                 friend['hasUnread'] = len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True)) > 0
                 all_friends.append(friend)

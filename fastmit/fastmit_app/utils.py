@@ -35,10 +35,6 @@ def json_response(response_dict, status=200):
     return response
 
 
-def redis_connect():
-    return redis.StrictRedis(host='localhost', port=6379, db=0)
-
-
 def get_session(token):
     try:
         session = Session.objects.get(pk=token)

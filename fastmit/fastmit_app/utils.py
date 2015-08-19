@@ -64,6 +64,19 @@ def get_uid(session):
     return session.get_decoded().get('_auth_user_id')
 
 
+def get_user_info(user):
+    info = dict()
+    r = redis_connect()
+    info['id'] = user.pk
+    info['username'] = user.username
+    info['photoUrl'] = r.get('user_%s_avatar' % user.pk)
+    info['email'] = user.email
+    info['friendsCount'] = len(r.smembers('user_%s_friends' % user.pk))
+    info['unreadCount'] = get_unread_count(user.pk, r)
+    info['color'] = r.get('user_%s_color' % user.pk)
+    return info
+
+
 def potential_friends_response(all_potential_friends, list_friend_id, request, r):
     if len(list_friend_id) > 0:
         for friend_id in list_friend_id:

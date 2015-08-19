@@ -27,7 +27,10 @@ def registration(request):
             user = auth.authenticate(username=username, password=password)
             auth.login(request, user)
             session_key = request.session.session_key
-            return json_response({'token': session_key})
+            r = redis_connect()
+            r.set('user_%s_color' % user.pk, color_gen())
+            info = get_user_info(user)
+            return json_response({'token': session_key, 'info': info})
         except IntegrityError:
             return json_response({'response': 'User exists'}, status=403)
     else:
@@ -48,7 +51,8 @@ def login(request):
             if user.is_active:
                 auth.login(request, user)
                 session_key = request.session.session_key
-                return json_response({'token': session_key})
+                info = get_user_info(user)
+                return json_response({'token': session_key, 'info': info})
             else:
                 return json_response({'response': 'User is sleeping'}, status=403)
         else:
@@ -85,7 +89,7 @@ def friends(request):
         session = get_session(token)
         if not session:
             return json_response({'response': 'token error'}, status=403)
-        uid = session.get_decoded().get('_auth_user_id')
+        uid = get_uid(session)
         r = redis_connect()
         list_friend_id = list(r.smembers('user_%s_friends' % uid))
         all_friends = []
@@ -97,6 +101,7 @@ def friends(request):
                 friend['isOnline'] = is_online(friend_id)
                 friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
                 friend['hasUnread'] = len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True)) > 0
+                friend['color'] = r.get('user_%s_color' % friend_id)
                 all_friends.append(friend)
         return json_response({'friends': all_friends})
     else:
@@ -114,7 +119,7 @@ def potential_friends(request):
         session = get_session(token)
         if not session:
             return json_response({'response': 'token error'}, status=403)
-        uid = session.get_decoded().get('_auth_user_id')
+        uid = get_uid(session)
         r = redis_connect()
         list_friend_id_in = list(r.smembers('user_%s_potential_friends_in' % uid))
         list_friend_id_out = list(r.smembers('user_%s_potential_friends_out' % uid))
@@ -141,7 +146,7 @@ def friends_add(request):
         user = get_user(friend_id)
         if not user:
             return json_response({'response': 'friend_id error'}, status=403)
-        uid = session.get_decoded().get('_auth_user_id')
+        uid = get_uid(session)
         r = redis_connect()
         if str(friend_id) in r.smembers('user_%s_potential_friends_in' % uid):
             r.sadd('user_%s_friends' % uid, friend_id)
@@ -171,7 +176,7 @@ def friends_delete(request):
         user = get_user(friend_id)
         if not user:
             return json_response({'response': 'friend_id error'}, status=403)
-        uid = session.get_decoded().get('_auth_user_id')
+        uid = get_uid(session)
         r = redis_connect()
         r.srem('user_%s_friends' % uid, friend_id)
         r.srem('user_%s_friends' % friend_id, uid)
@@ -210,6 +215,7 @@ def friends_search(request):
             user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
             user['isOnline'] = False
             user['photoUrl'] = r.get('user_%s_avatar' % uid)
+            user['color'] = r.get('user_%s_color' % uid)
             users.append(user)
         return json_response({'users': users})
     else:
@@ -229,13 +235,7 @@ def user_info(request):
             return json_response({'response': 'token error'}, status=403)
         uid = get_uid(session)
         user = get_user(uid)
-        r = redis_connect()
-        info = dict()
-        info['username'] = user.username
-        info['photoUrl'] = r.get('user_%s_avatar' % uid)
-        info['email'] = user.email
-        info['friendsCount'] = len(r.smembers('user_%s_friends' % uid))
-        info['unreadCount'] = get_unread_count(uid, r)
+        info = get_user_info(user)
         return json_response({'info': info})
     else:
         return json_response({'response': 'Invalid method'}, status=403)

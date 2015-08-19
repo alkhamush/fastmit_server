@@ -13,6 +13,8 @@ from django.http import HttpResponse
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+
 FILE_PREFIX = '/getfile'
 FILE_PREFIX_AVATAR = '/avatar'
 URL_PREFIX = 'http://95.85.8.141'
@@ -60,6 +62,19 @@ def get_uid(session):
     return session.get_decoded().get('_auth_user_id')
 
 
+def get_user_info(user):
+    info = dict()
+    r = redis_connect()
+    info['id'] = user.pk
+    info['username'] = user.username
+    info['photoUrl'] = r.get('user_%s_avatar' % user.pk)
+    info['email'] = user.email
+    info['friendsCount'] = len(r.smembers('user_%s_friends' % user.pk))
+    info['unreadCount'] = get_unread_count(user.pk, r)
+    info['color'] = r.get('user_%s_color' % user.pk)
+    return info
+
+
 def potential_friends_response(all_potential_friends, list_friend_id, request, r):
     if len(list_friend_id) > 0:
         for friend_id in list_friend_id:
@@ -68,6 +83,7 @@ def potential_friends_response(all_potential_friends, list_friend_id, request, r
             friend['username'] = User.objects.get(pk=friend_id).username
             friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
             friend['request'] = request
+            friend['color'] = r.get('user_%s_color' % friend_id)
             all_potential_friends.append(friend)
 
 
@@ -132,3 +148,7 @@ def read_file(file_link):
 
 def pass_gen(size=8, chars=string.ascii_lowercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
+
+def color_gen():
+    return random.choice(open(os.path.join(BASE_DIR, "fastmit_app/colors.txt")).readlines()).rstrip().upper()

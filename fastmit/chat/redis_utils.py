@@ -24,7 +24,7 @@ def add_online_user(uid):
     redis_client.set(uid, uid)
 
 
-def remove_online_use(uid):
+def remove_online_user(uid):
     redis_client = redis_connect()
     redis_client.delete(uid)
 

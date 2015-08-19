@@ -3,7 +3,6 @@
 import os
 import time
 import json
-import redis
 import errno
 import string
 import random
@@ -12,6 +11,8 @@ import hashlib
 from django.http import HttpResponse
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
+
+from redis_utils import redis_connect
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -35,6 +36,28 @@ def json_response(response_dict, status=200):
     response['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
     response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     return response
+
+
+def post_decorator(func):
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'OPTIONS':
+            return json_response({})
+        elif request.method == 'POST':
+            return func(request, *args, **kwargs)
+        else:
+            return json_response({'response': 'Invalid method'}, status=403)
+    return wrapper
+
+
+def get_decorator(func):
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'OPTIONS':
+            return json_response({})
+        elif request.method == 'POST':
+            return func(request, *args, **kwargs)
+        else:
+            return json_response({'response': 'Invalid method'}, status=403)
+    return wrapper
 
 
 def get_session(token):

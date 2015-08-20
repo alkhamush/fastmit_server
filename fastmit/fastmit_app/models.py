@@ -6,5 +6,5 @@ _PUBLIC_KEY_MAX_LENGTH = 172
 
 
 class PublicKey(models.Model):
-    user = models.ForeignKey(User, related_name="public_key")
+    user = models.OneToOneField(User, related_name="public_key")
     public_key = models.CharField(max_length=_PUBLIC_KEY_MAX_LENGTH)

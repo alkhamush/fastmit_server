@@ -182,7 +182,7 @@ def friends_search(request):
         user['id'] = find_user.id
         user['username'] = find_user.username
         user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
-        user['isOnline'] = False
+        user['isOnline'] = is_online(friend_id)
         user['photoUrl'] = r.get('user_%s_avatar' % uid)
         user['color'] = r.get('user_%s_color' % uid)
         users.append(user)

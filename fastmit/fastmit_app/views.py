@@ -58,15 +58,15 @@ def login(request):
 
 @post_decorator
 def logout(request):
-        params = parse_json(request.body)
-        if not params:
-            return json_response({'response': 'json error'}, status=403)
-        token = params.get('token', None)
-        session = get_session(token)
-        if not session:
-            return json_response({'response': 'Logout fail'}, status=403)
-        session.delete()
-        return json_response({'response': 'Ok'})
+    params = parse_json(request.body)
+    if not params:
+        return json_response({'response': 'json error'}, status=403)
+    token = params.get('token', None)
+    session = get_session(token)
+    if not session:
+        return json_response({'response': 'Logout fail'}, status=403)
+    session.delete()
+    return json_response({'response': 'Ok'})
 
 
 @post_decorator

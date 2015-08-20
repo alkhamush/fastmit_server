@@ -90,6 +90,7 @@ def get_user_info(user):
     r = redis_connect()
     info['id'] = user.pk
     info['username'] = user.username
+    info['publicKey'] = user.public_key.public_key
     info['photoUrl'] = r.get('user_%s_avatar' % user.pk)
     info['email'] = user.email
     info['friendsCount'] = len(r.smembers('user_%s_friends' % user.pk))

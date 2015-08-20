@@ -20,6 +20,28 @@ FILE_PREFIX_AVATAR = '/avatar'
 URL_PREFIX = 'http://95.85.8.141'
 
 
+def post_decorator(func):
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'OPTIONS':
+            return json_response({})
+        elif request.method == 'POST':
+            return func(request, *args, **kwargs)
+        else:
+            return json_response({'response': 'Invalid method'}, status=403)
+    return wrapper
+
+
+def get_decorator(func):
+    def wrapper(request, *args, **kwargs):
+        if request.method == 'OPTIONS':
+            return json_response({})
+        elif request.method == 'GET':
+            return func(request, *args, **kwargs)
+        else:
+            return json_response({'response': 'Invalid method'}, status=403)
+    return wrapper
+
+
 def parse_json(_str):
     try:
         params = json.loads(_str)

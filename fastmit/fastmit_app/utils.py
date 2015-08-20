@@ -3,6 +3,7 @@
 import os
 import time
 import json
+import redis
 import errno
 import string
 import random
@@ -11,8 +12,6 @@ import hashlib
 from django.http import HttpResponse
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
-
-from redis_utils import redis_connect
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
@@ -38,26 +37,8 @@ def json_response(response_dict, status=200):
     return response
 
 
-def post_decorator(func):
-    def wrapper(request, *args, **kwargs):
-        if request.method == 'OPTIONS':
-            return json_response({})
-        elif request.method == 'POST':
-            return func(request, *args, **kwargs)
-        else:
-            return json_response({'response': 'Invalid method'}, status=403)
-    return wrapper
-
-
-def get_decorator(func):
-    def wrapper(request, *args, **kwargs):
-        if request.method == 'OPTIONS':
-            return json_response({})
-        elif request.method == 'GET':
-            return func(request, *args, **kwargs)
-        else:
-            return json_response({'response': 'Invalid method'}, status=403)
-    return wrapper
+def redis_connect():
+    return redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 def get_session(token):
@@ -90,7 +71,6 @@ def get_user_info(user):
     r = redis_connect()
     info['id'] = user.pk
     info['username'] = user.username
-    info['publicKey'] = user.public_key.public_key
     info['photoUrl'] = r.get('user_%s_avatar' % user.pk)
     info['email'] = user.email
     info['friendsCount'] = len(r.smembers('user_%s_friends' % user.pk))

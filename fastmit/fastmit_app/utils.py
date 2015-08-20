@@ -53,7 +53,7 @@ def get_decorator(func):
     def wrapper(request, *args, **kwargs):
         if request.method == 'OPTIONS':
             return json_response({})
-        elif request.method == 'POST':
+        elif request.method == 'GET':
             return func(request, *args, **kwargs)
         else:
             return json_response({'response': 'Invalid method'}, status=403)

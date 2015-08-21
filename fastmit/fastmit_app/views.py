@@ -86,8 +86,10 @@ def friends(request):
         for friend_id in list_friend_id:
             friend = dict()
             friend['id'] = friend_id
-            friend['username'] = User.objects.get(pk=friend_id).username
-            friend['isOnline'] = is_online(friend_id)
+            user = User.objects.get(pk=friend_id)
+            friend['username'] = user.username
+            friend['publicKey'] = user.public_key.public_key
+            friend['isOnline'] = False
             friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
             friend['hasUnread'] = len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True)) > 0
             friend['color'] = r.get('user_%s_color' % friend_id)

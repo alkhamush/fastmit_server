@@ -89,7 +89,7 @@ def friends(request):
             user = User.objects.get(pk=friend_id)
             friend['username'] = user.username
             friend['publicKey'] = user.public_key.public_key
-            friend['isOnline'] = False
+            friend['isOnline'] = is_online(friend_id)
             friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
             friend['hasUnread'] = len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True)) > 0
             friend['color'] = r.get('user_%s_color' % friend_id)

@@ -246,7 +246,7 @@ def change_avatar(request):
         return json_response({'response': 'token error'}, status=403)
     uid = get_uid(session)
     user = get_user(uid)
-    avatar_link = save_file(user.username, avatar, uid, avatar=True)
+    avatar_link = save_file(user.username, avatar, token, avatar=True)
     r = redis_connect()
     old_avatar = r.get('user_%s_avatar' % uid)
     remove_file(old_avatar, avatar=True)
@@ -262,7 +262,7 @@ def get_photo(request):
     token = params.get('token', None)
     file_link = params.get('photoUrl', None)
     if not file_link:
-        return json_response({'response': 'no photo'}, status=403)
+        return json_response({'response': 'no such file'}, status=403)
     session = get_session(token)
     if not session:
         return json_response({'response': 'token error'}, status=403)

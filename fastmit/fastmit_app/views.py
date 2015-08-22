@@ -18,7 +18,7 @@ def registration(request):
     email = params.get('email', None)
     password = params.get('password', None)
     public_key = params.get('publicKey', None)
-    if not username or not email or not password:
+    if not username or not email or not password or not public_key:
         return json_response({'response': 'Invalid data'}, status=403)
     if User.objects.filter(email=email).count():
         return json_response({'response': 'Email is already registered'}, status=403)
@@ -246,7 +246,7 @@ def change_avatar(request):
         return json_response({'response': 'token error'}, status=403)
     uid = get_uid(session)
     user = get_user(uid)
-    avatar_link = save_file(user.username, avatar, avatar=True)
+    avatar_link = save_file(user.username, avatar, uid, avatar=True)
     r = redis_connect()
     old_avatar = r.get('user_%s_avatar' % uid)
     remove_file(old_avatar, avatar=True)
@@ -266,9 +266,11 @@ def get_photo(request):
     session = get_session(token)
     if not session:
         return json_response({'response': 'token error'}, status=403)
-    data = read_file(file_link)
+    photo = read_file(file_link)
+    if not photo:
+        return json_response({'response': 'no such file'}, status=403)
     remove_file(file_link)
-    return json_response({'data': data})
+    return json_response({'data': photo})
 
 
 @post_decorator
@@ -277,40 +279,35 @@ def put_photo(request):
     if not params:
         return json_response({'response': 'json error'}, status=403)
     token = params.get('token', None)
-    data = params.get('photo', None)
-    if not data:
+    photo = params.get('photo', None)
+    if not photo:
         return json_response({'response': 'file error'}, status=403)
     session = get_session(token)
     if not session:
         return json_response({'response': 'token error'}, status=403)
     uid = get_uid(session)
     user = get_user(uid)
-    url = save_file(user.username, data)
+    url = save_file(user.username, photo, uid)
     return json_response({'url': url})
 
 
 @get_decorator
 def forgot_password(request):
-    if request.method == 'OPTIONS':
-        return json_response({})
-    elif request.method == 'GET':
-        response = json_response({'response': 'New password has been sent to your email'})
-        email = request.GET.get('email', None)
-        user = get_user(email=email)
-        if not user:
-            return response
-        r = redis_connect()
-        tmp_pass = pass_gen()
-        recover = dict()
-        recover['pass'] = tmp_pass
-        recover['expires'] = int(time.time()) + 3600
-        r.set('user_%s_recover' % user.pk, json.dumps(recover))
-        send_mail(subject='Fastmit Password Recovery', from_email='no-reply@fastmit.com',
-                  recipient_list=[user.email], fail_silently=True,
-                  message='Dear %s,\n\nYour temp password for 1 hour is "%s" without quotes.\n\nBest,\nThe Fastmit Team' % (user.username, tmp_pass))
+    response = json_response({'response': 'New password has been sent to your email'})
+    email = request.GET.get('email', None)
+    user = get_user(email=email)
+    if not user:
         return response
-    else:
-        return json_response({'response': 'Invalid method'}, status=403)
+    r = redis_connect()
+    tmp_pass = pass_gen()
+    recover = dict()
+    recover['pass'] = tmp_pass
+    recover['expires'] = int(time.time()) + 3600
+    r.set('user_%s_recover' % user.pk, json.dumps(recover))
+    send_mail(subject='Fastmit Password Recovery', from_email='no-reply@fastmit.com',
+              recipient_list=[user.email], fail_silently=True,
+              message='Dear %s,\n\nYour temp password for 1 hour is "%s" without quotes.\n\nBest,\nThe Fastmit Team' % (user.username, tmp_pass))
+    return response
 
 
 @post_decorator

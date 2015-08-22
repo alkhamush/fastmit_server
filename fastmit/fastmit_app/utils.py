@@ -62,6 +62,7 @@ def json_response(response_dict, status=200):
 def redis_connect():
     return redis.StrictRedis(host='localhost', port=6379, db=0)
 
+
 def is_online(uid):
     redis_client = redis_connect()
     return redis_client.exists(uid)
@@ -136,14 +137,14 @@ def mkdir_p(path):
             raise
 
 
-def save_file(username, _file, avatar=False):
+def save_file(username, _file, token, avatar=False):
     if avatar:
         file_path = '%s/%s' % (FILE_PREFIX_AVATAR, username[0])
     else:
         file_path = '%s/%s/%s' % (FILE_PREFIX, username[0], username)
     mkdir_p(file_path)
     ts = int(time.time())
-    _hash = hashlib.sha1('%s%s' % (_file, ts)).hexdigest()[:15]
+    _hash = hashlib.sha1('%s%s' % (token, ts)).hexdigest()[:15]
     f = open('%s/%s' % (file_path, _hash), 'w')
     f.write(_file)
     f.close()
@@ -171,9 +172,12 @@ def read_file(file_link):
         file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
     except IndexError:
         return None
-    f = open(file_path)
-    data = f.read()
-    f.close()
+    try:
+        f = open(file_path)
+        data = f.read()
+        f.close()
+    except IOError:
+        return None
     return data
 
 

@@ -4,7 +4,7 @@ from django.contrib import auth
 from django.db import IntegrityError
 from django.core.mail import send_mail
 
-from fastmit_app.models import PublicKey
+from fastmit_app.models import PublicKey, APIKeyGCM
 
 from utils import *
 
@@ -18,13 +18,15 @@ def registration(request):
     email = params.get('email', None)
     password = params.get('password', None)
     public_key = params.get('publicKey', None)
-    if not username or not email or not password or not public_key:
+    device_token = params.get('deviceToken', None)
+    if not username or not email or not password or not public_key or not device_token:
         return json_response({'response': 'Invalid data'}, status=403)
     if User.objects.filter(email=email).count():
         return json_response({'response': 'Email is already registered'}, status=403)
     try:
         user = User.objects.create_user(username=username, email=email, password=password)
         PublicKey.objects.create(user=user, public_key=public_key)
+        APIKeyGCM.objects.create(user=user, device_token=device_token)
         user = auth.authenticate(username=username, password=password)
         auth.login(request, user)
         session_key = request.session.session_key

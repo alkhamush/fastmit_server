@@ -17,6 +17,7 @@ from tornado.options import define, options
 
 from message_utils import generate_messages_packet
 from photo_storage_connector import put_photo
+from push import push_message
 from redis_utils import add_message, get_messages, add_online_user, remove_online_user
 
 define("port", default=8888, type=int)
@@ -67,6 +68,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         else:
             message_body_json = json.dumps(body)
             add_message(to, message_body_json)
+            push_message(to)
 
     def on_close(self):
         try:

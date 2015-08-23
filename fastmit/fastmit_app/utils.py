@@ -8,6 +8,7 @@ import errno
 import string
 import random
 import hashlib
+import Image
 
 from django.http import HttpResponse
 from django.contrib.auth.models import User
@@ -100,6 +101,7 @@ def get_user_info(user):
     info['username'] = user.username
     info['publicKey'] = user.public_key.public_key
     info['photoUrl'] = r.get('user_%s_avatar' % user.pk)
+    info['previewUrl'] = r.get('user_%s_avatar_crop' % user.pk)
     info['email'] = user.email
     info['friendsCount'] = len(r.smembers('user_%s_friends' % user.pk))
     info['unreadCount'] = get_unread_count(user.pk, r)
@@ -114,6 +116,7 @@ def potential_friends_response(all_potential_friends, list_friend_id, request, r
             friend['id'] = friend_id
             friend['username'] = User.objects.get(pk=friend_id).username
             friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
+            friend['previewUrl'] = r.get('user_%s_avatar_crop' % friend_id)
             friend['request'] = request
             friend['color'] = r.get('user_%s_color' % friend_id)
             all_potential_friends.append(friend)
@@ -145,19 +148,64 @@ def save_file(username, _file, token, avatar=False):
     mkdir_p(file_path)
     ts = int(time.time())
     _hash = hashlib.sha1('%s%s' % (token, ts)).hexdigest()[:15]
-    f = open('%s/%s' % (file_path, _hash), 'w')
+    if avatar:
+        open_type = 'wb'
+        _hash += '.png'
+        _file = _file.decode('base64')
+    else:
+        open_type = 'w'
+    f = open('%s/%s' % (file_path, _hash), open_type)
     f.write(_file)
     f.close()
     return '%s%s/%s' % (URL_PREFIX, file_path, _hash)
+
+
+def crop_image(file_link, avatar=False):
+    try:
+        if avatar:
+            file_path = '%s%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX_AVATAR)[1])
+        else:
+            file_path = '%s%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+    except IndexError:
+        return
+    try:
+        image = Image.open(file_path)
+    except IOError:
+        return
+    w, h = image.size
+    base = 200
+    if w > h:
+        big_side = w
+        small_side = h
+    else:
+        big_side = h
+        small_side = w
+    percent = base / float(small_side)
+    new_size_big_side = int(big_side * percent)
+    if w > h:
+        new_sizes = (new_size_big_side, base)
+    else:
+        new_sizes = (base, new_size_big_side)
+    image = image.resize(new_sizes, Image.ANTIALIAS)
+    w, h = image.size
+    if w > h:
+        px_to_crop = (w - base) / 2
+        image = image.crop((px_to_crop, 0, w - px_to_crop, h))
+    else:
+        px_to_crop = (h - base) / 2
+        image = image.crop((0, px_to_crop, w, h - px_to_crop))
+    path_to_save = '%s/crop_%s' % (os.path.dirname(file_path), os.path.basename(file_path))
+    image.save(path_to_save)
+    return '%s%s' % (URL_PREFIX, path_to_save)
 
 
 def remove_file(file_link, avatar=False):
     file_link = str(file_link)
     try:
         if avatar:
-            file_path = '%s/%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX)[1])
+            file_path = '%s%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX_AVATAR)[1])
         else:
-            file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+            file_path = '%s%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
     except IndexError:
         return
     try:
@@ -169,7 +217,7 @@ def remove_file(file_link, avatar=False):
 def read_file(file_link):
     file_link = str(file_link)
     try:
-        file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+        file_path = '%s%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
     except IndexError:
         return None
     try:

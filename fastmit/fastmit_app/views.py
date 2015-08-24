@@ -26,7 +26,7 @@ def registration(request):
     try:
         user = User.objects.create_user(username=username, email=email, password=password)
         PublicKey.objects.create(user=user, public_key=public_key)
-        add_api_key_gcm(user.id)
+        add_gcm_key(user.id)
         user = auth.authenticate(username=username, password=password)
         auth.login(request, user)
         session_key = request.session.session_key

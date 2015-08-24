@@ -181,7 +181,7 @@ def friends_search(request):
     if find_name is None:
         return json_response({'users': users})
     qs = User.objects.all()
-    qs = qs.filter(username__icontains=find_name)
+    qs = qs.filter(username__icontains=find_name).exclude(pk=get_uid(session))
     for find_user in qs[:3]:
         user = dict()
         uid = get_uid(session)

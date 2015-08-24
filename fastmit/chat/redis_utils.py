@@ -28,3 +28,9 @@ def remove_online_user(uid):
     redis_client = redis_connect()
     redis_client.delete(uid)
 
+
+def get_gcm_key(uid):
+    redis_client = redis_connect()
+    redis_client.get("gcm{0}".format(uid))
+
+

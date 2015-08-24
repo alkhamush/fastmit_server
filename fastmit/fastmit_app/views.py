@@ -4,7 +4,7 @@ from django.contrib import auth
 from django.db import IntegrityError
 from django.core.mail import send_mail
 
-from fastmit_app.models import PublicKey, APIKeyGCM
+from fastmit_app.models import PublicKey
 
 from utils import *
 
@@ -26,7 +26,7 @@ def registration(request):
     try:
         user = User.objects.create_user(username=username, email=email, password=password)
         PublicKey.objects.create(user=user, public_key=public_key)
-        APIKeyGCM.objects.create(user=user, device_token=device_token)
+        add_gcm_key(user.id)
         user = auth.authenticate(username=username, password=password)
         auth.login(request, user)
         session_key = request.session.session_key

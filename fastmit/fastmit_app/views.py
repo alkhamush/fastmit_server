@@ -18,7 +18,6 @@ def registration(request):
     email = params.get('email', None)
     password = params.get('password', None)
     public_key = params.get('publicKey', None)
-    #device_token = params.get('deviceToken', None)
     if not username or not email or not password or not public_key:
         return json_response({'response': 'Invalid data'}, status=403)
     if User.objects.filter(email=email).count():
@@ -26,7 +25,6 @@ def registration(request):
     try:
         user = User.objects.create_user(username=username, email=email, password=password)
         PublicKey.objects.create(user=user, public_key=public_key)
-        #add_gcm_key(user.id)
         user = auth.authenticate(username=username, password=password)
         auth.login(request, user)
         session_key = request.session.session_key
@@ -344,3 +342,18 @@ def recover_password(request):
         user.save()
         return json_response({'response': 'Password is changed'})
     return response_error
+
+
+@post_decorator
+def set_device_token(request):
+    params = parse_json(request.body)
+    if not params:
+        return json_response({'response': 'json error'}, status=403)
+    device_token = params.get('deviceToken', None)
+    token = params.get('token', None)
+    if not device_token or not token:
+        return json_response({'response': 'Invalid data'}, status=403)
+    session = get_session(token)
+    uid = get_uid(session)
+    add_gcm_key(uid)
+

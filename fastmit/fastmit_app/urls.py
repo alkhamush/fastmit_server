@@ -18,4 +18,5 @@ urlpatterns = patterns('',
     url(r'^some-secret-api/chat/get-photourl$', views.put_photo, name='put_photo'),
     url(r'^some-secret-api/forgot-password$', views.forgot_password, name='forgot_password'),
     url(r'^some-secret-api/recover-password$', views.recover_password, name='recover_password'),
+    url(r'^some-secret-api/set-device-token$', views.set_device_token, name='set_device_token'),
 )

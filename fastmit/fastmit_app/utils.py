@@ -8,6 +8,7 @@ import errno
 import string
 import random
 import hashlib
+import tempfile
 from PIL import Image
 
 from django.http import HttpResponse
@@ -148,26 +149,26 @@ def save_file(username, _file, token, avatar=False):
     mkdir_p(file_path)
     ts = int(time.time())
     _hash = hashlib.sha1('%s%s' % (token, ts)).hexdigest()[:15]
+    file_name = '%s/%s' % (file_path, _hash)
     if avatar:
-        open_type = 'wb'
-        _hash += '.png'
-        _file = _file.decode('base64')
+        file_name += '.png'
+        f = tempfile.NamedTemporaryFile()
+        f.write(_file.decode('base64'))
+        f.seek(0)
+        image = Image.open(f.name)
+        image.save(file_name)
     else:
-        open_type = 'w'
-    f = open('%s/%s' % (file_path, _hash), open_type)
-    f.write(_file)
+        f = open(file_name, 'w')
+        f.write(_file)
     f.close()
-    return '%s%s/%s' % (URL_PREFIX, file_path, _hash)
+    file_link = '%s%s' % (URL_PREFIX, file_name)
+    return file_link
 
 
 def crop_image(file_link, avatar=False):
-    try:
-        if avatar:
-            file_path = '%s%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX_AVATAR)[1])
-        else:
-            file_path = '%s%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
-    except IndexError:
-        return
+    file_path = get_file_path(file_link, avatar=avatar)
+    if not file_path:
+        return None
     try:
         image = Image.open(file_path)
     except IOError:
@@ -201,13 +202,9 @@ def crop_image(file_link, avatar=False):
 
 def remove_file(file_link, avatar=False):
     file_link = str(file_link)
-    try:
-        if avatar:
-            file_path = '%s%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX_AVATAR)[1])
-        else:
-            file_path = '%s%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
-    except IndexError:
-        return
+    file_path = get_file_path(file_link, avatar=avatar)
+    if not file_path:
+        return None
     try:
         os.remove(file_path)
     except OSError:
@@ -216,9 +213,8 @@ def remove_file(file_link, avatar=False):
 
 def read_file(file_link):
     file_link = str(file_link)
-    try:
-        file_path = '%s/%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
-    except IndexError:
+    file_path = get_file_path(file_link)
+    if not file_path:
         return None
     try:
         f = open(file_path)
@@ -227,6 +223,17 @@ def read_file(file_link):
     except IOError:
         return None
     return data
+
+
+def get_file_path(file_link, avatar=False):
+    try:
+        if avatar:
+            file_path = '%s%s' % (FILE_PREFIX_AVATAR, file_link.split(FILE_PREFIX_AVATAR)[1])
+        else:
+            file_path = '%s%s' % (FILE_PREFIX, file_link.split(FILE_PREFIX)[1])
+    except IndexError:
+        return
+    return file_path
 
 
 def pass_gen(size=8, chars=string.ascii_lowercase + string.digits):

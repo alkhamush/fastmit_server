@@ -250,7 +250,6 @@ def change_avatar(request):
     user = get_user(uid)
     avatar_link = save_file(user.username, avatar, token, avatar=True)
     avatar_link_crop = crop_image(avatar_link, avatar=True)
-    print avatar_link_crop
     r = redis_connect()
     old_avatar_link = r.get('user_%s_avatar' % uid)
     remove_file(old_avatar_link, avatar=True)

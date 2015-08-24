@@ -8,7 +8,7 @@ import errno
 import string
 import random
 import hashlib
-import Image
+from PIL import Image
 
 from django.http import HttpResponse
 from django.contrib.auth.models import User
@@ -147,7 +147,7 @@ def mkdir_p(path):
 
 def save_file(username, _file, token, avatar=False):
     if avatar:
-        file_path = '%s/%s' % (FILE_PREFIX_AVATAR, username[0])
+        file_path = '%s/%s/%s' % (FILE_PREFIX_AVATAR, username[0], username)
     else:
         file_path = '%s/%s/%s' % (FILE_PREFIX, username[0], username)
     mkdir_p(file_path)

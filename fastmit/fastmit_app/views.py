@@ -93,6 +93,7 @@ def friends(request):
             friend['publicKey'] = user.public_key.public_key
             friend['isOnline'] = is_online(friend_id)
             friend['photoUrl'] = r.get('user_%s_avatar' % friend_id)
+            friend['previewUrl'] = r.get('user_%s_avatar_crop' % friend_id)
             friend['hasUnread'] = len(r.zrange('messages_from_%s_to_%s' % (friend_id, uid), 0, -1, withscores=True)) > 0
             friend['color'] = r.get('user_%s_color' % friend_id)
             all_friends.append(friend)
@@ -192,6 +193,7 @@ def friends_search(request):
         user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
         user['isOnline'] = is_online(find_user.id)
         user['photoUrl'] = r.get('user_%s_avatar' % uid)
+        user['previewUrl'] = r.get('user_%s_avatar_crop' % uid)
         user['color'] = r.get('user_%s_color' % uid)
         users.append(user)
     return json_response({'users': users})
@@ -249,10 +251,14 @@ def change_avatar(request):
     uid = get_uid(session)
     user = get_user(uid)
     avatar_link = save_file(user.username, avatar, token, avatar=True)
+    avatar_link_crop = crop_image(avatar_link, avatar=True)
     r = redis_connect()
-    old_avatar = r.get('user_%s_avatar' % uid)
-    remove_file(old_avatar, avatar=True)
+    old_avatar_link = r.get('user_%s_avatar' % uid)
+    remove_file(old_avatar_link, avatar=True)
+    old_avatar_crop_link = r.get('user_%s_avatar_crop' % uid)
+    remove_file(old_avatar_crop_link, avatar=True)
     r.set('user_%s_avatar' % uid, avatar_link)
+    r.set('user_%s_avatar_crop' % uid, avatar_link_crop)
     return json_response({'response': 'Ok'})
 
 

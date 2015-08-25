@@ -32,6 +32,4 @@ def remove_online_user(uid):
 def get_gcm_key(uid):
     redis_client = redis_connect()
     key = "gcm{0}".format(uid)
-    print key
-    print type(key)
     return redis_client.get(key)

@@ -182,7 +182,8 @@ def friends_search(request):
         return json_response({'users': users})
     uid = get_uid(session)
     qs = User.objects.all()
-    qs = qs.filter(username__icontains=find_name).exclude(pk=uid)
+    #qs = qs.filter(username__icontains=find_name).exclude(pk=uid)
+    qs = qs.filter(username__icontains=find_name)
     for find_user in qs[:3]:
         user = dict()
         r = redis_connect()
@@ -356,4 +357,5 @@ def set_device_token(request):
     session = get_session(token)
     uid = get_uid(session)
     add_gcm_key(uid, device_token)
+    return json_response({'response': 'Ok'})
 

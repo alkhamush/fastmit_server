@@ -182,18 +182,18 @@ def friends_search(request):
     find_name = params.get('username', None)
     if find_name is None:
         return json_response({'users': users})
+    uid = get_uid(session)
     qs = User.objects.all()
-    qs = qs.filter(username__icontains=find_name)
+    qs = qs.filter(username__icontains=find_name).exclude(pk=uid)
     for find_user in qs[:3]:
         user = dict()
-        uid = get_uid(session)
         r = redis_connect()
         user['id'] = find_user.id
         user['username'] = find_user.username
         user['isFriend'] = str(find_user.id) in r.smembers('user_%s_friends' % uid)
         user['isOnline'] = is_online(find_user.id)
-        user['photoUrl'] = r.get('user_%s_avatar' % uid)
-        user['previewUrl'] = r.get('user_%s_avatar_crop' % uid)
+        user['photoUrl'] = r.get('user_%s_avatar' % find_user.id)
+        user['previewUrl'] = r.get('user_%s_avatar_crop' % find_user.id)
         user['color'] = r.get('user_%s_color' % uid)
         users.append(user)
     return json_response({'users': users})
@@ -252,7 +252,6 @@ def change_avatar(request):
     user = get_user(uid)
     avatar_link = save_file(user.username, avatar, token, avatar=True)
     avatar_link_crop = crop_image(avatar_link, avatar=True)
-    print avatar_link_crop
     r = redis_connect()
     old_avatar_link = r.get('user_%s_avatar' % uid)
     remove_file(old_avatar_link, avatar=True)

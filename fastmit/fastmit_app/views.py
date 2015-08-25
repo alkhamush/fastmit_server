@@ -348,6 +348,7 @@ def set_device_token(request):
     params = parse_json(request.body)
     if not params:
         return json_response({'response': 'json error'}, status=403)
+    print params
     device_token = params.get('deviceToken', None)
     token = params.get('token', None)
     if not device_token or not token:

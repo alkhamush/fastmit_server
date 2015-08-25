@@ -65,9 +65,9 @@ def redis_connect():
     return redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
-def add_gcm_key(uid):
+def add_gcm_key(uid, device_token):
     redis_client = redis_connect()
-    redis_client.set("gcm{0}".format(uid))
+    redis_client.set("gcm{0}".format(uid), device_token)
 
 
 def is_online(uid):

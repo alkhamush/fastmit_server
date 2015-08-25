@@ -355,5 +355,5 @@ def set_device_token(request):
         return json_response({'response': 'Invalid data'}, status=403)
     session = get_session(token)
     uid = get_uid(session)
-    add_gcm_key(uid)
+    add_gcm_key(uid, device_token)
 

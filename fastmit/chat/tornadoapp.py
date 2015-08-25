@@ -68,7 +68,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         else:
             message_body_json = json.dumps(body)
             add_message(to, message_body_json)
-        push_message(self.uid)
+        push_message(to)
 
     def on_close(self):
         try:

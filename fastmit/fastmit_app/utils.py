@@ -67,7 +67,9 @@ def redis_connect():
 
 def add_gcm_key(uid, device_token):
     redis_client = redis_connect()
-    redis_client.set("gcm{0}".format(uid), device_token)
+    redis_client.set("gcm{0}".format(str(uid)), device_token)
+    print uid
+    print type(uid)
 
 
 def is_online(uid):

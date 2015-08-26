@@ -12,5 +12,5 @@ def push_add_friend(uid):
     username = User.objects.values_list("username", flat=True).get(id=uid)
     reg_id = get_gcm_key(uid)
     if reg_id:
-        data = {"message": "Пользователь {0} хочет добавить Вас в друзья".format(username), "title": "Fastmit"}
+        data = {"message": "Вас добавили в друзья", "title": username}
         API_KEY_GCM.json_request(registration_ids=[reg_id], data=data)

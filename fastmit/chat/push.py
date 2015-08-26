@@ -12,5 +12,5 @@ def push_message(uid):
     username = User.objects.values_list("username", flat=True).get(id=uid)
     reg_id = get_gcm_key(uid)
     if reg_id:
-        data = {"message": "Вам пришло сообщение от пользователя {0}".format(username), "title": "Fastmit"}
+        data = {"message": "Новое сообщение", "title": username}
         API_KEY_GCM.json_request(registration_ids=[reg_id], data=data)

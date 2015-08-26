@@ -141,7 +141,7 @@ def friends_add(request):
     else:
         r.sadd('user_%s_potential_friends_out' % uid, friend_id)
         r.sadd('user_%s_potential_friends_in' % friend_id, uid)
-    push_add_friend(friend_id)
+    push_add_friend(friend_id, uid)
     return json_response({'response': 'Request is sent'})
 
 

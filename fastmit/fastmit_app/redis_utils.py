@@ -8,3 +8,9 @@ def redis_connect():
 def is_online(uid):
     redis_client = redis_connect()
     return redis_client.exists(uid)
+
+
+def get_gcm_key(uid):
+    redis_client = redis_connect()
+    key = "gcm{0}".format(uid)
+    return redis_client.get(key)

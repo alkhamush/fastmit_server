@@ -5,6 +5,7 @@ from django.db import IntegrityError
 from django.core.mail import send_mail
 
 from fastmit_app.models import PublicKey
+from fastmit_app.push import push_add_friend
 
 from utils import *
 
@@ -140,6 +141,7 @@ def friends_add(request):
     else:
         r.sadd('user_%s_potential_friends_out' % uid, friend_id)
         r.sadd('user_%s_potential_friends_in' % friend_id, uid)
+    push_add_friend(friend_id)
     return json_response({'response': 'Request is sent'})
 
 
@@ -182,8 +184,7 @@ def friends_search(request):
         return json_response({'users': users})
     uid = get_uid(session)
     qs = User.objects.all()
-    #qs = qs.filter(username__icontains=find_name).exclude(pk=uid)
-    qs = qs.filter(username__icontains=find_name)
+    qs = qs.filter(username__icontains=find_name).exclude(pk=uid)
     for find_user in qs[:3]:
         user = dict()
         r = redis_connect()
